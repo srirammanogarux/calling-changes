@@ -81,18 +81,24 @@ export const HISTORY_SECTIONS: HistorySection[] = [
     rows: [
       // A call that never reached `/conclude`. SHOWN rather than hidden: a call
       // that vanished from the list is worse than one with no length on it.
-      { id: "h4", when: "10 Aug · 10:05 PM", duration: null, stars: 0, totalStars: 3 },
+      //
+      // It used to say "Didn't finish", which was the internal reason dressed
+      // up as user-facing copy. What the user can act on is the same fact as
+      // every other unanalysed call: there is no score. The reason is ours.
+      { id: "h4", when: "10 Aug · 10:05 PM", duration: null, stars: 0, totalStars: 3, analysis: "none" },
       { id: "h5", when: "8 Aug · 6:48 PM", duration: "5 min 24 s", stars: 3, totalStars: 3 },
     ],
   },
 ];
 
 /**
- * The same list, with the analysis missing on two rows.
+ * The same list, with an analysis still in flight.
  *
- * BOTH sub-cases in one screen on purpose: they sit next to each other in a
- * real list, and the whole design question is whether a reader can tell "wait
- * a minute" apart from "this one is never coming" without being told twice.
+ * The TERMINAL case now lives in the default fixture, because a call that
+ * never concluded has no score either and there is no longer a separate way of
+ * saying so. What this state adds is the transient one, so both sit on screen
+ * together: the whole design question is whether a reader can tell "wait a
+ * minute" apart from "this one is never coming" without being told twice.
  *
  * The section totals are UNCHANGED. The call happened and its minutes count;
  * only the award is missing, and a total that quietly dropped a call the user
@@ -102,11 +108,7 @@ export const HISTORY_SECTIONS_NO_ANALYSIS: HistorySection[] =
   HISTORY_SECTIONS.map((s) => ({
     ...s,
     rows: s.rows.map((r) =>
-      r.id === "h1"
-        ? { ...r, analysis: "coming" as const }
-        : r.id === "h5"
-          ? { ...r, analysis: "none" as const }
-          : r,
+      r.id === "h1" ? { ...r, analysis: "coming" as const } : r,
     ),
   }));
 
@@ -164,8 +166,8 @@ export const HISTORY_STATES: {
   },
   {
     key: "no_analysis",
-    label: "P1 · Analysis missing",
-    hint: "The call is there and its minutes count; only the award is missing. The lane says which kind: Analysing while it is coming, No score when it never will be, and the chevron goes on a row that opens nothing. Today all three server states render as earnedStars ?? 0, so a missing analysis is indistinguishable from a zero-star call.",
+    label: "P · Analysis missing",
+    hint: "The call is there and its minutes count; only the award is missing. It is said on the second line, where the row already explains itself: Analysing under a breathing dot while it is coming, Score unavailable under an alert glyph when it never will be. The award lane empties and the chevron goes with it, because a row that opens an empty page is worse than one that does not open. Today all three server states render as earnedStars ?? 0, so a missing analysis is indistinguishable from a zero-star call.",
     replaces: "analysisStatus != completed",
   },
 ];
@@ -314,7 +316,6 @@ function SectionHeader({ section, first }: { section: HistorySection; first: boo
 }
 
 function Row({ row }: { row: HistoryRowData }) {
-  const unfinished = row.duration === null;
   const analysis = row.analysis ?? "ready";
   // A row that opens an empty analysis is worse than a row that does not open.
   // "coming" still opens: the analysis page has its own waiting state, and
@@ -339,68 +340,88 @@ function Row({ row }: { row: HistoryRowData }) {
         <div style={{ color: "#FFFFFF", fontSize: 17, fontWeight: 600, lineHeight: "22px" }}>
           {row.when}
         </div>
+
+        {/* Line two is where the row explains itself. The duration is a fact
+            about the call; what follows it is a fact about the score, and each
+            leads with its own glyph so the two states are told apart before
+            either is read. */}
         <div
+          data-testid={`cv3_history_sub_${row.id}`}
           style={{
-            // Amber, not red: a call the user walked away from is not an error,
-            // and the row is still openable.
-            color: unfinished ? "rgba(251,191,36,0.75)" : "rgba(255,255,255,0.50)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
             fontSize: 14,
             lineHeight: "18px",
           }}
         >
-          {unfinished ? "Didn't finish" : row.duration}
+          {row.duration && (
+            <span style={{ color: "rgba(255,255,255,0.50)" }}>{row.duration}</span>
+          )}
+          {row.duration && analysis !== "ready" && (
+            <span style={{ color: "rgba(255,255,255,0.22)" }}>·</span>
+          )}
+
+          {analysis === "coming" && (
+            <>
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 999,
+                  background: "#C4B5FD",
+                  flexShrink: 0,
+                  // A slow breath, not a blink: the row is waiting, not
+                  // alerting, and six blinking dots down one list is a fault
+                  // indicator panel.
+                  animation: "hist-waiting 1.8s ease-in-out infinite",
+                }}
+              />
+              <span style={{ color: "rgba(196,181,253,0.85)" }}>Analysing</span>
+            </>
+          )}
+
+          {analysis === "none" && (
+            <>
+              {/* Amber, inherited from the "Didn't finish" line this replaces:
+                  the row already had a colour for "something here is not
+                  right", and it is not red, because nothing the user did
+                  caused it and nothing they do will fix it. */}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="rgba(251,191,36,0.75)"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                style={{ flexShrink: 0 }}
+              >
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 8v4.5M12 16h.01" />
+              </svg>
+              <span style={{ color: "rgba(251,191,36,0.75)" }}>Score unavailable</span>
+            </>
+          )}
         </div>
       </div>
 
-      {/* The award lane, whatever is in it. It is NEVER three empty stars when
-          there is no analysis: that is a score of zero, and this row has no
-          score at all. The two are opposite facts and they must not share a
-          picture. */}
-      {analysis === "ready" ? (
-        <StarRow earned={row.stars} total={row.totalStars} />
-      ) : analysis === "coming" ? (
-        <div
-          data-testid={`cv3_history_analysing_${row.id}`}
-          style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}
-        >
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: 999,
-              background: "#C4B5FD",
-              flexShrink: 0,
-              animation: "hist-waiting 1.8s ease-in-out infinite",
-            }}
-          />
-          <span
-            style={{
-              color: "rgba(196,181,253,0.85)",
-              fontSize: 13,
-              fontWeight: 500,
-              lineHeight: "16px",
-            }}
-          >
-            Analysing
-          </span>
-        </div>
-      ) : (
-        <div
-          data-testid={`cv3_history_noscore_${row.id}`}
-          style={{
-            color: "rgba(255,255,255,0.30)",
-            fontSize: 13,
-            lineHeight: "16px",
-            flexShrink: 0,
-          }}
-        >
-          No score
-        </div>
-      )}
+      {/* The award lane. It is NEVER three empty stars when there is no
+          analysis: that is a score of zero, and this row has no score at all.
+          The two are opposite facts and they must not share a picture. The
+          slot is held so the lane keeps its right edge either way. */}
+      <div
+        style={{
+          minWidth: 48,
+          height: 14,
+          flexShrink: 0,
+          display: "flex",
+          justifyContent: "flex-end",
+        }}
+      >
+        {analysis === "ready" && <StarRow earned={row.stars} total={row.totalStars} />}
+      </div>
 
-      {/* The slot is held either way, so a row with nothing to open does not
-          drag its lane out to the screen edge while its neighbours stop short
-          of the chevron. */}
       <div style={{ width: 18, height: 18, flexShrink: 0 }}>
         {opens && (
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
