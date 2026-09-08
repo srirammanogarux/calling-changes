@@ -217,11 +217,40 @@ function OptionRow({
         transition: "background 180ms ease, border-color 180ms ease",
       }}
     >
-      {/* No topic label any more. It was doing two jobs badly: naming a
-          category the statement already names, and shouting FOOTBALL in caps
-          over a sentence about Messi. What is left is the pick indicator, in
-          the corner the label used to fill. */}
-      <div style={{ display: "flex", justifyContent: "flex-end", alignSelf: "stretch" }}>
+      {/* The topic label is gone: it named a category the statement already
+          names, and shouted FOOTBALL in caps over a sentence about Messi. What
+          takes the slot is the option's LETTER, which is scaffolding rather
+          than content. It gives the row a left anchor so the tick is not
+          floating on its own, and it gives the pair a shared vocabulary: two
+          untitled cards are "the left one" and "the other one", which is not
+          something anyone can say back to you.
+
+          It follows the SLOT, not the prompt. Which topic sits left is drawn
+          per session, so A is whatever is on the left this time. That keeps it
+          honest as a pointer and costs nothing in the data, where position is
+          already logged in its own field. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          alignSelf: "stretch",
+        }}
+      >
+        <div
+          style={{
+            // Quieter than the topic label was. That one carried information;
+            // this is a name for a box, and it must never be read before the
+            // sentence under it.
+            color: selected ? "rgba(216,205,251,0.85)" : "rgba(255,255,255,0.38)",
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.12em",
+            transition: "color 180ms ease",
+          }}
+        >
+          {`OPTION ${String.fromCharCode(65 + index)}`}
+        </div>
         {selected ? (
           <svg width="18" height="18" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
             <circle cx="12" cy="12" r="10" fill="#C4B5FD" />

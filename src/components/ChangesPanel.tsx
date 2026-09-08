@@ -201,9 +201,10 @@ export function ChangesPanel({
                 Replay / reshuffle
               </button>
               <div style={hintStyle}>
-                Which topic sits left is drawn per session and rides the answer,
-                so neither is permanently the understudy and the result is not
-                a reading of our own layout.
+                Which topic sits left is drawn per session and rides the
+                answer, so neither is permanently the understudy and the result
+                is not a reading of our own layout. A and B name the SLOT, not
+                the topic: A is whatever is on the left this time.
               </div>
 
               <div style={{ marginTop: 16 }}>
