@@ -14,8 +14,8 @@ import type { HomeGate } from "@/lib/types";
  * changing.
  *
  * Three groups, nothing else. The GREETING SLOT (today's static line as the
- * control, then the four memory-opener versions and every state inside them),
- * the FAILURE SCREENS, and RECENT CALLS. The live call and the summary sit in
+ * control, and the memory survey that is the chosen arm against it), the
+ * FAILURE SCREENS, and RECENT CALLS. The live call and the summary sit in
  * the full prototype; putting them here would bury the changes in a flow
  * nobody is being asked to review.
  */
@@ -41,10 +41,6 @@ export default function Page() {
   const [section, setSection] = useState<Section>("greeting");
 
   const [greeting, setGreeting] = useState<"memory" | "static">("memory");
-  const [memoryLayout, setMemoryLayout] = useState<
-    "bubble" | "cards" | "stack" | "survey"
-  >("bubble");
-  const [memorySetKey, setMemorySetKey] = useState("fresh");
   const [surveyStage, setSurveyStage] = useState<SurveyStage>("asking");
   const [failureKey, setFailureKey] = useState("no_talktime");
   const [historyKey, setHistoryKey] = useState<HistoryStateKey>("loaded");
@@ -64,37 +60,20 @@ export default function Page() {
   const [lastStart, setLastStart] = useState<{
     promptId: string;
     topicKey: string;
-    position?: "left" | "right" | "top" | "bottom";
+    position?: "left" | "right";
     msToPick?: number;
   } | null>(null);
 
-  /** Every switch redraws, so each version plays from its first beat and no
-   *  choice is carried over from the one before it. */
-  const pickLayout = useCallback(
-    (l: "bubble" | "cards" | "stack" | "survey") => {
-      setMemoryLayout(l);
+  /** Switching arms redraws, so each plays from its first beat and no choice
+   *  is carried over from the one before it. */
+  const pickGreeting = useCallback(
+    (g: "memory" | "static") => {
+      setGreeting(g);
       setSurveyStage("asking");
       redraw();
     },
     [redraw],
   );
-  const pickSet = useCallback(
-    (k: string) => {
-      setMemorySetKey(k);
-      redraw();
-    },
-    [redraw],
-  );
-
-  // "Still being written" is a wait, not a screen: it resolves on its own.
-  useEffect(() => {
-    if (memorySetKey !== "pending") return;
-    const id = window.setTimeout(() => {
-      setMemorySetKey("fresh");
-      redraw();
-    }, 4500);
-    return () => window.clearTimeout(id);
-  }, [memorySetKey, memoryNonce, redraw]);
 
   return (
     <>
@@ -105,8 +84,6 @@ export default function Page() {
             balance={BALANCE}
             gate={GATE}
             memoryOpener={greeting === "memory"}
-            memoryLayout={memoryLayout}
-            memorySetKey={memorySetKey}
             surveyStage={surveyStage}
             onSurveyAnswer={setSurveyStage}
             memoryNonce={memoryNonce}
@@ -129,11 +106,7 @@ export default function Page() {
         section={section}
         setSection={setSection}
         greeting={greeting}
-        setGreeting={setGreeting}
-        memoryLayout={memoryLayout}
-        setMemoryLayout={pickLayout}
-        memorySetKey={memorySetKey}
-        setMemorySetKey={pickSet}
+        setGreeting={pickGreeting}
         surveyStage={surveyStage}
         setSurveyStage={setSurveyStage}
         failureKey={failureKey}

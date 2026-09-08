@@ -14,11 +14,8 @@ import {
   SarahSpeechBubble,
   ShimmerBox,
 } from "./kit";
-import { MemoryBubble, MemoryDots } from "./MemoryBubble";
-import { cardsFor, memorySet, SURVEY_COPY, type SurveyStage } from "@/lib/memory";
+import { MEMORY_PROMPTS, SURVEY_COPY, type SurveyStage } from "@/lib/memory";
 import { MemorySurvey } from "./MemorySurvey";
-import { MemoryCards } from "./MemoryCards";
-import { useMemoryOpener } from "@/lib/memoryOpener";
 
 export type BalanceState =
   | { kind: "loading" }
@@ -44,10 +41,8 @@ export function HomeScreen({
   onWhatsApp,
   micDenied,
   memoryOpener = false,
-  memoryLayout = "bubble",
   surveyStage = "asking",
   onSurveyAnswer,
-  memorySetKey = "fresh",
   memoryNonce = 0,
   onStartAttributed,
 }: {
@@ -58,18 +53,9 @@ export function HomeScreen({
   onUpgrade: () => void;
   onWhatsApp: () => void;
   micDenied?: boolean;
-  /** Swap the static greeting for the rotating memory opener. */
+  /** Swap the static greeting for the memory survey. */
   memoryOpener?: boolean;
-  /** Which state the card is in — see MEMORY_SETS. */
-  memorySetKey?: string;
-  /**
-   * "bubble" = v1, one rotating card.
-   * "cards"  = v2, two side by side, pick one.
-   * "stack"  = v3, the same pick stacked vertically.
-   * "survey" = v4, the same pick asked as research, then today's greeting.
-   */
-  memoryLayout?: "bubble" | "cards" | "stack" | "survey";
-  /** v4 only: where the survey is in its life. */
+  /** Where the survey is in its life. */
   surveyStage?: SurveyStage;
   onSurveyAnswer?: (stage: SurveyStage) => void;
   /** Bump to reshuffle which prompt opens. */
@@ -79,29 +65,22 @@ export function HomeScreen({
   onStartAttributed?: (a: {
     promptId: string;
     topicKey: string;
-    /** v2/v3 only: which SLOT the chosen card was in. Without it the result
-     *  is a reading of the layout rather than of the topics. */
-    position?: "left" | "right" | "top" | "bottom";
+    /** Which SLOT the chosen card was in. Without it the result is a reading
+     *  of the layout rather than of the topics. */
+    position?: "left" | "right";
     msToPick?: number;
   }) => void;
 }) {
   const remainingS = balance.kind === "loaded" ? balance.remainingS : null;
   const route = startRouteFor(gate, remainingS);
-  const set = memorySet(memorySetKey);
-  const prompts = set.prompts;
-  const opener = useMemoryOpener(prompts, memoryNonce);
-  const ctaPrompt = prompts[opener.ctaIndex];
-  const pending = set.status === "pending";
 
-  /* ── v2 draws ──────────────────────────────────────────────────────────
-     Both drawn from the session nonce, and INDEPENDENTLY of each other: if
-     the pre-selected card were always the left one, randomising position
-     would buy nothing. */
-  const { pair, header } = cardsFor(set);
-  // Which topic sits LEFT is drawn per session: the left card wins more
-  // regardless of what is on it.
+  // Which topic sits LEFT is drawn per session and logged with the tap: the
+  // left card wins more regardless of what is on it, so without the draw the
+  // answer is a reading of our own layout.
   const flipped = Math.abs(memoryNonce) % 2 === 1;
-  const ordered = flipped ? [pair[1], pair[0]] : pair;
+  const ordered = flipped
+    ? [MEMORY_PROMPTS[1], MEMORY_PROMPTS[0]]
+    : MEMORY_PROMPTS;
 
   /**
    * NOTHING is pre-selected. A pre-ticked card with the button already loaded
@@ -118,11 +97,8 @@ export function HomeScreen({
     shownAt.current = performance.now();
   }, []);
 
-  const stacked = memoryLayout === "stack";
-  const survey = memoryOpener && memoryLayout === "survey";
+  const survey = memoryOpener;
   const asking = survey && surveyStage === "asking";
-  const cards =
-    memoryOpener && (memoryLayout === "cards" || stacked);
   const choosePicked = (i: number) => {
     if (pickedAfterMs.current === null) {
       pickedAfterMs.current = Math.round(performance.now() - shownAt.current);
@@ -130,25 +106,12 @@ export function HomeScreen({
     setPicked(i);
   };
 
-  // A pending card promises nothing, so the CTA promises nothing either.
-  // With nothing chosen the button names the NEXT STEP rather than sitting
-  // there as an unexplained grey slab.
-  const startLabel = survey
-    ? asking
-      ? SURVEY_COPY.submit
-      : t.home.startCall
-    : pending
-      ? undefined
-      : cards
-        ? (cardsPrompt?.ctaLabel ?? "Pick a topic to start")
-        : ctaPrompt.ctaLabel;
-  // The one place the app's "never a dead button" rule bends, deliberately:
-  // the button is visibly not ready and says why, rather than looking live
-  // and doing nothing.
   // Submit needs an answer; Start never does.
-  const startBlocked = asking
-    ? picked === null
-    : cards && !pending && cardsPrompt === null;
+  const startLabel = asking ? SURVEY_COPY.submit : t.home.startCall;
+  // The one place the app's "never a dead button" rule bends, deliberately:
+  // the button is visibly not ready, and the skip underneath means nobody is
+  // trapped behind it.
+  const startBlocked = asking && picked === null;
   // The button is gated, not dead: pressing it sends the eye to the decision
   // instead of doing nothing at all.
   const nudgeCards = () => setNudge((n) => n + 1);
@@ -156,52 +119,43 @@ export function HomeScreen({
   if (route === "paywallScreen") return <CallingPaywall onUpgrade={onUpgrade} />;
 
   const startWithAttribution = () => {
-    // In v4 the button banks an answer rather than placing a call. The call
-    // comes afterwards, from the ordinary greeting, exactly as it does today.
+    // The button banks an answer rather than placing a call. The call comes
+    // afterwards, from the ordinary greeting, exactly as it does today.
     if (asking) {
-      onSurveyAnswer?.("answered");
-      return;
-    }
-    if (memoryOpener) {
-      // Attributed to the CTA's prompt, not the card's: the CTA is what the
-      // user actually pressed, and it trails the card by design. A pending
-      // card and a covered one both start a call that belongs to no topic —
-      // crediting either would put a tap in the wrong bucket.
-      if (pending) {
-        onStartAttributed?.({ promptId: "none", topicKey: "no_memory" });
-      } else if (cards && cardsPrompt) {
+      if (cardsPrompt) {
         onStartAttributed?.({
           promptId: cardsPrompt.id,
           topicKey: cardsPrompt.topicKey,
-          // Top wins over bottom the way left wins over right, so the slot
-          // travels with the tap either way.
-          position: stacked
-            ? picked === 0
-              ? "top"
-              : "bottom"
-            : picked === 0
-              ? "left"
-              : "right",
+          position: picked === 0 ? "left" : "right",
           msToPick: pickedAfterMs.current ?? undefined,
         });
-      } else if (ctaPrompt.covered) {
-        onStartAttributed?.({ promptId: "none", topicKey: "other" });
-      } else {
-        onStartAttributed?.({
-          promptId: ctaPrompt.id,
-          topicKey: ctaPrompt.topicKey,
-        });
       }
+      onSurveyAnswer?.("answered");
+      return;
     }
     onStart();
+  };
+
+  /**
+   * Skipped, so nothing was banked and nothing is owed.
+   *
+   * It lands on "settled" rather than "answered" for exactly that reason: the
+   * tag says we will use your response, and there is no response. Logged as a
+   * dismissal so the cadence can back off instead of asking again in four
+   * calls.
+   */
+  const skipSurvey = () => {
+    onStartAttributed?.({
+      promptId: "none",
+      topicKey: "skipped",
+      msToPick: Math.round(performance.now() - shownAt.current),
+    });
+    onSurveyAnswer?.("settled");
   };
 
   return (
     <div
       style={{ position: "absolute", inset: 0 }}
-      // A finger anywhere on the screen stops the rotation for the session:
-      // the CTA must never change under a thumb already on its way down.
-      onPointerDown={memoryOpener ? opener.stop : undefined}
     >
       <CallingBackground />
       <div
@@ -213,7 +167,32 @@ export function HomeScreen({
           padding: `${T.frame.safeTop + T.frame.screenPaddingTop}px ${T.frame.screenPaddingH}px ${T.frame.screenPaddingBottom + T.frame.safeBottom}px`,
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        {/* History and talktime are hidden while the question is up, and only
+            while it is up.
+            Neither belongs to what is being asked. "12 min left" is a budget
+            for a call the user is not being invited to make yet, and reading
+            it next to a survey is the moment they wonder whether answering
+            costs them minutes. Both come back the instant the answer is in.
+
+            The row keeps its HEIGHT throughout, so nothing below it moves when
+            they arrive; only the ink fades. */}
+        <div
+          data-testid="cv3_top_pills"
+          aria-hidden={asking}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            opacity: asking ? 0 : 1,
+            pointerEvents: asking ? "none" : "auto",
+            // Arriving takes longer than leaving, and waits for the bubble to
+            // finish swapping: two things fading in at once reads as a screen
+            // reloading rather than as one settling.
+            transition: asking
+              ? "opacity 160ms ease-in"
+              : "opacity 320ms ease-out 420ms",
+          }}
+        >
           <CallingTopPill
             testId="cv3_history_pill"
             style={T.historyPill}
@@ -263,36 +242,30 @@ export function HomeScreen({
             alignItems: "center",
           }}
         >
-          <div style={{ height: stacked ? 10 : 24 }} />
-          {/* v3 drops the big heading. Two stacked cards do not fit under it,
-              and it is the most redundant thing on the screen once the pill
-              below is asking the question and the button is naming the call. */}
-          {!stacked && (
-            <>
-              <div
-                style={{
-                  fontSize: T.frame.homeHeadingSize,
-                  fontWeight: 800,
-                  textAlign: "center",
-                  // A faint white bloom, not a second light source.
-                  textShadow: "0 0 18px rgba(255,255,255,0.35)",
-                }}
-              >
-                {t.home.callWithSarah}
-              </div>
-              <div style={{ height: 40 }} />
-            </>
-          )}
-          {/* The cards need the room a full-height avatar was using, and
-              stacking needs more still. The hero is not allowed to scroll, so
-              the avatar is what yields. */}
+          {/* The hero tightens while the question is up and opens back out
+              once it clears. Both spacers TRANSITION rather than snapping, so
+              the screen settles into the answer instead of re-laying out under
+              it. */}
+          <Spacer height={asking ? 12 : 24} />
+          <div
+            style={{
+              fontSize: T.frame.homeHeadingSize,
+              fontWeight: 800,
+              textAlign: "center",
+              // A faint white bloom, not a second light source.
+              textShadow: "0 0 18px rgba(255,255,255,0.35)",
+            }}
+          >
+            {t.home.callWithSarah}
+          </div>
+          <Spacer height={asking ? 22 : 40} />
+          {/* The options need the room a full-height avatar was using, and the
+              hero is not allowed to scroll, so the avatar is what yields.
+              Sarah gets her full size back the moment they clear, which is
+              what makes the screen feel like it has settled rather than like
+              something was taken off it. */}
           <CallingAvatar
-            // v4 gives Sarah her full size back the moment the options clear,
-            // which is what makes the screen feel like it has settled rather
-            // than like something was removed from it.
-            size={
-              asking ? 150 : stacked ? 230 : cards ? 210 : T.frame.homeAvatarSize
-            }
+            size={asking ? 142 : T.frame.homeAvatarSize}
             src="/sarah-speaking.mp4"
             haloOpacity={0}
           />
@@ -316,56 +289,11 @@ export function HomeScreen({
               stage={surveyStage}
               nudge={nudge}
             />
-          ) : cards ? (
-            <MemoryCards
-              header={header}
-              pair={ordered}
-              selected={picked}
-              onSelect={choosePicked}
-              pending={pending}
-              nudge={nudge}
-              orientation={stacked ? "column" : "row"}
-            />
-          ) : memoryOpener ? (
-            <MemoryBubble
-              prompts={prompts}
-              pending={pending}
-              cardIndex={opener.cardIndex}
-              litCount={opener.litCount}
-              shown={opener.shown}
-              // Swiping the bubble changes the TOPIC. The gesture belongs to
-              // the card, not to the tab pager behind it.
-              onSwipe={
-                pending
-                  ? undefined
-                  : (d) =>
-                      opener.jumpTo(
-                        (opener.cardIndex + d + prompts.length) % prompts.length,
-                      )
-              }
-            />
           ) : (
             <SarahSpeechBubble text={t.home.greeting} />
           )}
           <div style={{ height: 12 }} />
         </div>
-
-        {/* Dots live beside the CTA, not under the bubble: they are about
-            which prompt you are about to call on, not about the text. */}
-        {memoryOpener && !cards && !survey && route === "ctaStart" && (
-          <>
-            {/* The dots' SPACE is held even when there is nothing to page
-                between, so the CTA never moves between states. */}
-            <div style={{ opacity: pending || prompts.length < 2 ? 0 : 1 }}>
-              <MemoryDots
-                count={prompts.length}
-                index={opener.cardIndex}
-                onJump={opener.jumpTo}
-              />
-            </div>
-            <div style={{ height: 18 }} />
-          </>
-        )}
 
         {micDenied && (
           <div
@@ -394,8 +322,55 @@ export function HomeScreen({
           onUpgrade={onUpgrade}
           onWhatsApp={onWhatsApp}
         />
+
+        {/* The skip.
+            Under the button, and never beside it: two things on one line are
+            two options, and this is not one. It is plain text at the weight of
+            the subtitle, with a tap target big enough to hit and no border,
+            fill or icon to argue with Submit.
+
+            It COLLAPSES rather than disappearing, so the button glides down
+            into the space instead of the row vanishing from under it. */}
+        <div
+          style={{
+            maxHeight: asking ? 46 : 0,
+            opacity: asking ? 1 : 0,
+            overflow: "hidden",
+            pointerEvents: asking ? "auto" : "none",
+            transition: asking
+              ? "max-height 320ms cubic-bezier(0.22,1,0.36,1), opacity 220ms ease-out 140ms"
+              : "max-height 380ms cubic-bezier(0.4,0,0.2,1), opacity 160ms ease-in",
+          }}
+        >
+          <button
+            data-testid="cv3_survey_skip"
+            onClick={skipSurvey}
+            style={{
+              width: "100%",
+              height: 46,
+              fontSize: 15,
+              fontWeight: 500,
+              color: "rgba(255,255,255,0.45)",
+            }}
+          >
+            {SURVEY_COPY.skip}
+          </button>
+        </div>
       </div>
     </div>
+  );
+}
+
+/** A gap that can change size without the screen jumping. */
+function Spacer({ height }: { height: number }) {
+  return (
+    <div
+      style={{
+        height,
+        flexShrink: 0,
+        transition: "height 380ms cubic-bezier(0.22,1,0.36,1)",
+      }}
+    />
   );
 }
 

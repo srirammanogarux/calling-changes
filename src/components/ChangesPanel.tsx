@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { MEMORY_SETS, memorySet, type SurveyStage } from "@/lib/memory";
+import { type SurveyStage } from "@/lib/memory";
 import { FAILURE_SCREENS, failureScreen } from "./FailureScreens";
 import { HISTORY_STATES, historyState, type HistoryStateKey } from "./HistoryScreen";
 
@@ -18,10 +18,6 @@ export function ChangesPanel({
   setSection,
   greeting,
   setGreeting,
-  memoryLayout,
-  setMemoryLayout,
-  memorySetKey,
-  setMemorySetKey,
   surveyStage,
   setSurveyStage,
   failureKey,
@@ -37,10 +33,6 @@ export function ChangesPanel({
   setSection: (s: "greeting" | "failure" | "history") => void;
   greeting: "memory" | "static";
   setGreeting: (g: "memory" | "static") => void;
-  memoryLayout: "bubble" | "cards" | "stack" | "survey";
-  setMemoryLayout: (l: "bubble" | "cards" | "stack" | "survey") => void;
-  memorySetKey: string;
-  setMemorySetKey: (k: string) => void;
   surveyStage: SurveyStage;
   setSurveyStage: (s: SurveyStage) => void;
   failureKey: string;
@@ -51,7 +43,7 @@ export function ChangesPanel({
   lastStart: {
     promptId: string;
     topicKey: string;
-    position?: "left" | "right" | "top" | "bottom";
+    position?: "left" | "right";
     msToPick?: number;
   } | null;
 }) {
@@ -144,92 +136,56 @@ export function ChangesPanel({
             />
             <Radio
               checked={greeting === "memory"}
-              label="Memory opener"
-              hint="Built from what the user actually talked about on their last call."
+              label="Memory survey"
+              hint="Asks which of two remembered topics they would rather talk about, banks the answer, then hands over to today's greeting. Personalises nothing yet, so it can ship before the memory pipeline exists."
               onChange={() => setGreeting("memory")}
             />
           </Section>
 
           {greeting === "memory" && (
             <>
-              <Section title="Version">
-                <Radio
-                  checked={memoryLayout === "bubble"}
-                  label="v1 · One bubble, rotating"
-                  hint="Sarah talks. Full width, so the question is a sentence. But which card is on screen at the tap depends partly on how fast the thumb arrived."
-                  onChange={() => setMemoryLayout("bubble")}
-                />
-                <Radio
-                  checked={memoryLayout === "cards"}
-                  label="v2 · Two cards, side by side"
-                  hint="Nothing moves and nothing is pre-selected, so every start is a real choice. Which topic sits left is drawn per session and logged. Costs half the copy width."
-                  onChange={() => setMemoryLayout("cards")}
-                />
-                <Radio
-                  checked={memoryLayout === "stack"}
-                  label="v3 · Two cards, stacked"
-                  hint="The same pick, full width, so the copy is Sarah's sentence again. Costs height: the big heading goes."
-                  onChange={() => setMemoryLayout("stack")}
-                />
-                <Radio
-                  checked={memoryLayout === "survey"}
-                  label="v4 · Survey, not a call"
-                  hint="Asks which topic they would prefer, banks the answer, then hands over to today's greeting with the promise under it. Personalises nothing yet, so it can ship before the pipeline exists."
-                  onChange={() => setMemoryLayout("survey")}
-                />
+              <Section title="Survey stage">
+                <div style={{ display: "flex", gap: 6 }}>
+                  {(
+                    [
+                      ["asking", "Asking"],
+                      ["answered", "Answered"],
+                      ["settled", "Later"],
+                    ] as [SurveyStage, string][]
+                  ).map(([k, label]) => (
+                    <button
+                      key={k}
+                      onClick={() => setSurveyStage(k)}
+                      style={{
+                        flex: 1,
+                        padding: "8px 0",
+                        borderRadius: 8,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        background:
+                          surveyStage === k ? "#A78BFA" : "rgba(255,255,255,0.08)",
+                        color: surveyStage === k ? "#1A1230" : "#fff",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div style={hintStyle}>
+                  While the question is up, History and the talktime pill are
+                  gone. Neither belongs to what is being asked, and &ldquo;12
+                  min left&rdquo; beside a survey is the moment someone wonders
+                  whether answering costs them minutes. Both fade back in once
+                  the answer is banked.
+                </div>
+                <div style={hintStyle}>
+                  Answered keeps the promise under the bubble. Later is a
+                  session or two on, and also where Not now lands: the tag is
+                  gone and the screen is today&rsquo;s app again. Cadence in the
+                  real thing is every four to seven calls, drawn at random, and
+                  a skip should back that off rather than reset it.
+                </div>
               </Section>
-
-              {memoryLayout === "survey" ? (
-                <Section title="Survey stage">
-                  <div style={{ display: "flex", gap: 6 }}>
-                    {(
-                      [
-                        ["asking", "Asking"],
-                        ["answered", "Answered"],
-                        ["settled", "Later"],
-                      ] as [SurveyStage, string][]
-                    ).map(([k, label]) => (
-                      <button
-                        key={k}
-                        onClick={() => setSurveyStage(k)}
-                        style={{
-                          flex: 1,
-                          padding: "8px 0",
-                          borderRadius: 8,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          background:
-                            surveyStage === k ? "#A78BFA" : "rgba(255,255,255,0.08)",
-                          color: surveyStage === k ? "#1A1230" : "#fff",
-                        }}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <div style={hintStyle}>
-                    Answered keeps the promise under the bubble. Later is a
-                    session or two on: the tag is gone and the screen is
-                    today&rsquo;s app again. Cadence in the real thing is every
-                    four to seven calls, drawn at random.
-                  </div>
-                </Section>
-              ) : (
-                <Section title="Card state">
-                  <select
-                    value={memorySetKey}
-                    onChange={(e) => setMemorySetKey(e.target.value)}
-                    style={selectStyle}
-                  >
-                    {MEMORY_SETS.map((m) => (
-                      <option key={m.key} value={m.key} style={{ background: "#0d0c14" }}>
-                        {m.label}
-                      </option>
-                    ))}
-                  </select>
-                  <div style={hintStyle}>{memorySet(memorySetKey).hint}</div>
-                </Section>
-              )}
 
               <button
                 onClick={onReshuffle}
@@ -245,26 +201,23 @@ export function ChangesPanel({
                 Replay / reshuffle
               </button>
               <div style={hintStyle}>
-                Which topic leads is drawn per session, so neither is
-                permanently the understudy.
+                Which topic sits left is drawn per session and rides the answer,
+                so neither is permanently the understudy and the result is not
+                a reading of our own layout.
               </div>
 
               <div style={{ marginTop: 16 }}>
-                <Row k="last start" v={lastStart?.topicKey ?? "—"} />
+                <Row k="answer" v={lastStart?.topicKey ?? "—"} />
                 <Row k="prompt_id" v={lastStart?.promptId ?? "—"} />
-                {memoryLayout !== "bubble" && (
-                  <>
-                    <Row k="position" v={lastStart?.position ?? "—"} />
-                    <Row
-                      k="time to pick"
-                      v={
-                        lastStart?.msToPick !== undefined
-                          ? `${(lastStart.msToPick / 1000).toFixed(1)}s`
-                          : "—"
-                      }
-                    />
-                  </>
-                )}
+                <Row k="position" v={lastStart?.position ?? "—"} />
+                <Row
+                  k="time to answer"
+                  v={
+                    lastStart?.msToPick !== undefined
+                      ? `${(lastStart.msToPick / 1000).toFixed(1)}s`
+                      : "—"
+                  }
+                />
               </div>
             </>
           )}
@@ -321,15 +274,6 @@ export function ChangesPanel({
   );
 }
 
-const selectStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "9px 10px",
-  borderRadius: 8,
-  background: "rgba(255,255,255,0.08)",
-  border: "1px solid rgba(255,255,255,0.14)",
-  color: "#fff",
-  fontSize: 13,
-};
 
 const hintStyle: React.CSSProperties = {
   marginTop: 8,

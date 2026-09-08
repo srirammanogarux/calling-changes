@@ -36,7 +36,7 @@ export function MemorySurvey({
   const chosen = selected === null ? null : pair[selected];
   const lit = useSweepOnSelect(
     asking && chosen ? chosen.id : null,
-    chosen ? wordCount(chosen.question) : 0,
+    chosen ? wordCount(chosen.statement) : 0,
   );
 
   return (
@@ -217,19 +217,11 @@ function OptionRow({
         transition: "background 180ms ease, border-color 180ms ease",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, alignSelf: "stretch" }}>
-        <div
-          style={{
-            color: selected ? "#D8CDFB" : "#A99BE0",
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: "0.12em",
-            flex: 1,
-            minWidth: 0,
-          }}
-        >
-          {prompt.topicLabel}
-        </div>
+      {/* No topic label any more. It was doing two jobs badly: naming a
+          category the statement already names, and shouting FOOTBALL in caps
+          over a sentence about Messi. What is left is the pick indicator, in
+          the corner the label used to fill. */}
+      <div style={{ display: "flex", justifyContent: "flex-end", alignSelf: "stretch" }}>
         {selected ? (
           <svg width="18" height="18" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
             <circle cx="12" cy="12" r="10" fill="#C4B5FD" />
@@ -255,7 +247,7 @@ function OptionRow({
         )}
       </div>
       <SweepText
-        text={prompt.question}
+        text={prompt.statement}
         litCount={litCount}
         fontSize={16}
         lineHeight="23px"
