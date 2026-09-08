@@ -38,7 +38,11 @@ export interface HistoryRowData {
   id: string;
   /** Server-formatted and rendered verbatim, exactly as the app does it. */
   when: string;
-  /** Null when `/conclude` never ran, which is what "Didn't finish" means. */
+  /**
+   * Server-formatted, rendered verbatim. Null ONLY when `/conclude` never ran
+   * and the server sent no length at all, which is rare and separate from
+   * having no score: an unanalysed call still knows how long it was.
+   */
   duration: string | null;
   /** Fractional in 0.5 steps, out of `totalStars`. */
   stars: number;
@@ -77,15 +81,18 @@ export const HISTORY_SECTIONS: HistorySection[] = [
   {
     key: "earlier",
     label: "EARLIER",
-    total: "5m 24s total",
+    // 3:41 + 5:24. The totals are real sums, so the unanalysed call is IN it:
+    // the call happened and those minutes were spoken. A total that quietly
+    // dropped a call the user can see listed under it would be a worse bug
+    // than the one this state exists to fix.
+    total: "9m 05s total",
     rows: [
-      // A call that never reached `/conclude`. SHOWN rather than hidden: a call
-      // that vanished from the list is worse than one with no length on it.
-      //
-      // It used to say "Didn't finish", which was the internal reason dressed
-      // up as user-facing copy. What the user can act on is the same fact as
-      // every other unanalysed call: there is no score. The reason is ours.
-      { id: "h4", when: "10 Aug · 10:05 PM", duration: null, stars: 0, totalStars: 3, analysis: "none" },
+      // The award is missing; the DURATION is not. A call always has a length,
+      // and this row used to say "Didn't finish", which was the internal reason
+      // dressed up as user-facing copy. What the user can act on is the same
+      // fact as every other unanalysed call: there is no score. The reason is
+      // ours.
+      { id: "h4", when: "10 Aug · 10:05 PM", duration: "3 min 41 s", stars: 0, totalStars: 3, analysis: "none" },
       { id: "h5", when: "8 Aug · 6:48 PM", duration: "5 min 24 s", stars: 3, totalStars: 3 },
     ],
   },
