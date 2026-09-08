@@ -174,7 +174,7 @@ export const HISTORY_STATES: {
   {
     key: "no_analysis",
     label: "P · Analysis missing",
-    hint: "The call is there and its minutes count; only the award is missing. It is said on the second line, where the row already explains itself: Analysing under a breathing dot while it is coming, Score unavailable under an alert glyph when it never will be. The award lane empties and the chevron goes with it, because a row that opens an empty page is worse than one that does not open. Today all three server states render as earnedStars ?? 0, so a missing analysis is indistinguishable from a zero-star call.",
+    hint: "The call is there and its minutes count; only the award is missing. It is said on the second line, where the row already explains itself: Analysing under a breathing dot while it is coming, Feedback unavailable under an alert glyph when it never will be. Feedback, not score: what the row is missing is the whole read on the call, and a learner is owed the coaching more than the number. The award lane empties and the chevron goes with it, because a row that opens an empty page is worse than one that does not open. Today all three server states render as earnedStars ?? 0, so a missing analysis is indistinguishable from a zero-star call.",
     replaces: "analysisStatus != completed",
   },
 ];
@@ -407,7 +407,7 @@ function Row({ row }: { row: HistoryRowData }) {
                 <circle cx="12" cy="12" r="9" />
                 <path d="M12 8v4.5M12 16h.01" />
               </svg>
-              <span style={{ color: "rgba(251,191,36,0.75)" }}>Score unavailable</span>
+              <span style={{ color: "rgba(251,191,36,0.75)" }}>Feedback unavailable</span>
             </>
           )}
         </div>
