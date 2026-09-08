@@ -1,0 +1,397 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Calling V3 prototype — global shell.
+
+   Everything inside the phone frame is authored in DESIGN PX against the
+   412x917 frame the Flutter app uses (flutter_screenutil). The frame itself
+   is scaled with a CSS transform, so 1 design px == 1 CSS px in here.
+--------------------------------------------------------------------------- */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  /* White behind the mockup; the phone screen is the only dark surface. */
+  background: #ffffff;
+  color: #fff;
+  -webkit-font-smoothing: antialiased;
+  /* The page itself never scrolls, in either axis. A horizontal trackpad
+     flick belongs to the card inside the phone; without this it drags the
+     document and the mockup slides off toward empty space. */
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scrollbars inside the phone read as chrome from another app. */
+.no-bar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-bar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Motion ──────────────────────────────────────────────────────────────── */
+
+/* "Calling…" — 1100ms, reversing, 0.35 → 1. */
+@keyframes cv3-blink {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* The ring's travelling highlight: rotating the sweep gradient IS the glimmer. */
+@keyframes cv3-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* One ripple's travel: filled circle fading to zero as it goes. */
+@keyframes cv3-ripple {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+/* The user-turn light breathing between min and max opacity. */
+@keyframes cv3-breathe {
+  from {
+    opacity: var(--breath-min);
+  }
+  to {
+    opacity: var(--breath-max);
+  }
+}
+
+/* Sarah's halo brightening while she is audible. */
+@keyframes cv3-halo-breathe {
+  from {
+    opacity: 0.82;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cv3-eq {
+  0%,
+  100% {
+    height: 35%;
+  }
+  50% {
+    height: 100%;
+  }
+}
+
+@keyframes cv3-dot-blink {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* A caption line rising into the reading position. */
+@keyframes cv3-line-in {
+  from {
+    opacity: 0;
+    transform: translateY(60%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* The line being replaced lifts out in a fraction of the time. */
+@keyframes cv3-line-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes cv3-shimmer {
+  from {
+    background-position: -160% 0;
+  }
+  to {
+    background-position: 260% 0;
+  }
+}
+
+@keyframes cv3-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes cv3-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* The countdown taking over at 5:00 — overshoot, then settle. */
+@keyframes cv3-bounce {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.14);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Every nudge step: a damped horizontal wobble, small on purpose. */
+@keyframes cv3-shake {
+  0% {
+    transform: translateX(0);
+  }
+  14% {
+    transform: translateX(5px);
+  }
+  28% {
+    transform: translateX(-4px);
+  }
+  42% {
+    transform: translateX(3px);
+  }
+  57% {
+    transform: translateX(-2px);
+  }
+  71% {
+    transform: translateX(1px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.cv3-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.12) 35%,
+    rgba(255, 255, 255, 0.24) 50%,
+    rgba(255, 255, 255, 0.12) 65%,
+    rgba(255, 255, 255, 0.12) 100%
+  );
+  background-size: 220% 100%;
+  animation: cv3-shimmer 1.6s linear infinite;
+}
+
+/* Material Symbols Rounded, filled by default — Flutter's `Icons.*_rounded`
+   set is the filled rounded family; `.ms-outlined` is the `_outlined` half. */
+.ms {
+  font-family: "Material Symbols Rounded";
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+.ms-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+/* The cards answering a tap on a button that is waiting for a choice. */
+@keyframes cv3-nudge {
+  0% {
+    transform: scale(1);
+  }
+  38% {
+    transform: scale(1.025);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* A button whose label changes under your eyes: the words swap through a
+   fade rather than cutting, so the CTA reads as the same button changing
+   its mind rather than a different button appearing. */
+@keyframes cv3-label-swap {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Call failure states ────────────────────────────────────────────────
+   Ported verbatim from the approved failure-states build: the same art, the
+   same shared motion library, the same timings. Only the frame around them
+   changed, so the motion is the thing that was signed off rather than a
+   re-interpretation of it. */
+
+@keyframes fs-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes fs-groundBob {
+  0%, 100% { transform: translateX(-50%) scaleX(1); opacity: 0.8; }
+  50% { transform: translateX(-50%) scaleX(0.9); opacity: 0.55; }
+}
+@keyframes fs-shine {
+  0%, 30% { background-position: 135% 0; }
+  64%, 100% { background-position: -35% 0; }
+}
+@keyframes fs-ringShake {
+  0%, 62%, 100% { transform: rotate(0) translateX(0); }
+  66% { transform: rotate(-4deg) translateX(-3px); }
+  70% { transform: rotate(4deg) translateX(3px); }
+  74% { transform: rotate(-3.4deg) translateX(-2px); }
+  78% { transform: rotate(3.4deg) translateX(2px); }
+  82% { transform: rotate(-2deg) translateX(-1px); }
+  86% { transform: rotate(1.4deg) translateX(1px); }
+  90% { transform: rotate(0) translateX(0); }
+}
+@keyframes fs-jitter {
+  0%, 55%, 100% { transform: translate(0, 0) rotate(0); }
+  60% { transform: translate(-2px, 1px) rotate(-1.4deg); }
+  66% { transform: translate(2px, -1px) rotate(1.4deg); }
+  72% { transform: translate(-1.5px, 1px) rotate(-1deg); }
+  78% { transform: translate(1px, 0) rotate(0.6deg); }
+  84% { transform: translate(0, 0) rotate(0); }
+}
+@keyframes fs-flicker {
+  0%, 44%, 100% { opacity: 1; }
+  48% { opacity: 0.35; }
+  52% { opacity: 1; }
+  56% { opacity: 0.2; }
+  60% { opacity: 0.9; }
+  64% { opacity: 0.45; }
+  68% { opacity: 1; }
+}
+@keyframes fs-waveOut {
+  0% { width: 70px; height: 70px; opacity: 0.55; }
+  70% { opacity: 0; }
+  100% { width: 270px; height: 270px; opacity: 0; }
+}
+@keyframes fs-glowPulse {
+  0%, 100% { opacity: 0.15; transform: scale(0.85); }
+  50% { opacity: 0.75; transform: scale(1.1); }
+}
+@keyframes fs-coinDrop {
+  0% { transform: translateY(-250px) scaleX(0.22); opacity: 0; animation-timing-function: cubic-bezier(0.45,0,0.85,0.5); }
+  6% { opacity: 1; animation-timing-function: cubic-bezier(0.45,0,0.85,0.5); }
+  50% { transform: translateY(0) scaleX(0.22); animation-timing-function: cubic-bezier(0.25,0.7,0.5,1); }
+  57% { transform: translateY(-9px) scaleX(0.22); animation-timing-function: cubic-bezier(0.5,0,0.9,0.6); }
+  64% { transform: translateY(0) scaleX(0.22); animation-timing-function: cubic-bezier(0.5,0,0.9,0.6); }
+  80% { transform: translateY(46px) scaleX(0.22); opacity: 1; }
+  82%, 100% { transform: translateY(46px) scaleX(0.22); opacity: 0; }
+}
+@keyframes fs-slotGlow {
+  0%, 62% { opacity: 0; transform: scale(0.5); }
+  74% { opacity: 1; transform: scale(1); }
+  90% { opacity: 0; transform: scale(1.6); }
+  100% { opacity: 0; }
+}
+@keyframes fs-splitL {
+  0%, 30% { transform: translateX(0) rotate(0); }
+  38% { transform: translateX(-3px) rotate(-1deg); }
+  52%, 88% { transform: translateX(-11px) rotate(-2.4deg); }
+  100% { transform: translateX(0) rotate(0); }
+}
+@keyframes fs-splitR {
+  0%, 30% { transform: translateX(0) rotate(0); }
+  38% { transform: translateX(3px) rotate(1deg); }
+  52%, 88% { transform: translateX(11px) rotate(2.4deg); }
+  100% { transform: translateX(0) rotate(0); }
+}
+@keyframes fs-crackFlash {
+  0%, 30% { opacity: 0; }
+  36% { opacity: 0.9; }
+  56% { opacity: 0; }
+  100% { opacity: 0; }
+}
+@keyframes fs-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* A gloss travelling across the upgrade CTA. Same 2.6s period as Sarah's ring
+   glimmer, so the two read as the same family of motion rather than as two
+   unrelated shines on one screen. */
+@keyframes fs-btnShine {
+  0%, 24% { transform: translateX(-140%) skewX(-18deg); }
+  62%, 100% { transform: translateX(240%) skewX(-18deg); }
+}
+
+/* Connection lost: the outer arcs give out first, the way real signal does. */
+@keyframes fs-arcOut {
+  0%, 38% { opacity: 1; }
+  46% { opacity: 0.15; }
+  54% { opacity: 0.9; }
+  62% { opacity: 0.1; }
+  74%, 100% { opacity: 1; }
+}
+@keyframes fs-breakFlash {
+  0%, 40% { opacity: 0; }
+  48% { opacity: 1; }
+  60% { opacity: 0.2; }
+  70% { opacity: 0.85; }
+  86%, 100% { opacity: 0; }
+}
