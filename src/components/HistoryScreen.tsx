@@ -22,6 +22,18 @@ import { CallingBackground } from "./kit";
 
 /* ── The shape of a row ──────────────────────────────────────────────────── */
 
+/**
+ * Whether this row has an award to show.
+ *
+ * Three server states collapse into two treatments, because the only thing the
+ * user needs from the difference is whether waiting will help:
+ *   * `pending` / `in_progress` / `unknown` → "coming". It resolves itself.
+ *   * `failed` → "none". Terminal.
+ *   * `not_available` → "none". Legacy imports that were never queued, so
+ *     nothing is coming and nothing went wrong either.
+ */
+export type RowAnalysis = "ready" | "coming" | "none";
+
 export interface HistoryRowData {
   id: string;
   /** Server-formatted and rendered verbatim, exactly as the app does it. */
@@ -31,6 +43,8 @@ export interface HistoryRowData {
   /** Fractional in 0.5 steps, out of `totalStars`. */
   stars: number;
   totalStars: number;
+  /** Defaults to "ready": the row has its award. */
+  analysis?: RowAnalysis;
 }
 
 export interface HistorySection {
@@ -73,6 +87,29 @@ export const HISTORY_SECTIONS: HistorySection[] = [
   },
 ];
 
+/**
+ * The same list, with the analysis missing on two rows.
+ *
+ * BOTH sub-cases in one screen on purpose: they sit next to each other in a
+ * real list, and the whole design question is whether a reader can tell "wait
+ * a minute" apart from "this one is never coming" without being told twice.
+ *
+ * The section totals are UNCHANGED. The call happened and its minutes count;
+ * only the award is missing, and a total that quietly dropped a call the user
+ * can see listed above it would be a worse bug than the one being fixed.
+ */
+export const HISTORY_SECTIONS_NO_ANALYSIS: HistorySection[] =
+  HISTORY_SECTIONS.map((s) => ({
+    ...s,
+    rows: s.rows.map((r) =>
+      r.id === "h1"
+        ? { ...r, analysis: "coming" as const }
+        : r.id === "h5"
+          ? { ...r, analysis: "none" as const }
+          : r,
+    ),
+  }));
+
 /* ── The states ──────────────────────────────────────────────────────────── */
 
 export type HistoryStateKey =
@@ -85,7 +122,9 @@ export type HistoryStateKey =
   /** The FIRST load failed, so there is no list at all. */
   | "error"
   /** The list is fine; the next PAGE failed. */
-  | "load_more_failed";
+  | "load_more_failed"
+  /** The calls are all there. Some of them have no award to show. */
+  | "no_analysis";
 
 export const HISTORY_STATES: {
   key: HistoryStateKey;
@@ -122,6 +161,12 @@ export const HISTORY_STATES: {
     label: "D3 · Couldn't load more",
     hint: "The page you have is fine and stays on screen; only the next page failed. The retry lives at the bottom where the missing rows would be.",
     replaces: "HistoryLoaded(loadMoreFailed)",
+  },
+  {
+    key: "no_analysis",
+    label: "P1 · Analysis missing",
+    hint: "The call is there and its minutes count; only the award is missing. The lane says which kind: Analysing while it is coming, No score when it never will be, and the chevron goes on a row that opens nothing. Today all three server states render as earnedStars ?? 0, so a missing analysis is indistinguishable from a zero-star call.",
+    replaces: "analysisStatus != completed",
   },
 ];
 
@@ -166,7 +211,10 @@ export function HistoryScreen({ state }: { state: HistoryStateKey }) {
             </>
           ) : (
             <>
-              {HISTORY_SECTIONS.map((s, i) => (
+              {(state === "no_analysis"
+                ? HISTORY_SECTIONS_NO_ANALYSIS
+                : HISTORY_SECTIONS
+              ).map((s, i) => (
                 <React.Fragment key={s.key}>
                   <SectionHeader section={s} first={i === 0} />
                   {s.rows.map((r) => (
@@ -267,6 +315,12 @@ function SectionHeader({ section, first }: { section: HistorySection; first: boo
 
 function Row({ row }: { row: HistoryRowData }) {
   const unfinished = row.duration === null;
+  const analysis = row.analysis ?? "ready";
+  // A row that opens an empty analysis is worse than a row that does not open.
+  // "coming" still opens: the analysis page has its own waiting state, and
+  // that is where someone who wants to watch it should be able to go.
+  const opens = analysis !== "none";
+
   return (
     <button
       data-testid={`cv3_history_row_${row.id}`}
@@ -278,6 +332,7 @@ function Row({ row }: { row: HistoryRowData }) {
         borderBottom: "1px solid rgba(255,255,255,0.08)",
         textAlign: "left",
         width: "100%",
+        cursor: opens ? "pointer" : "default",
       }}
     >
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 5 }}>
@@ -296,10 +351,63 @@ function Row({ row }: { row: HistoryRowData }) {
           {unfinished ? "Didn't finish" : row.duration}
         </div>
       </div>
-      <StarRow earned={row.stars} total={row.totalStars} />
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-        <path d="m9 18 6-6-6-6" />
-      </svg>
+
+      {/* The award lane, whatever is in it. It is NEVER three empty stars when
+          there is no analysis: that is a score of zero, and this row has no
+          score at all. The two are opposite facts and they must not share a
+          picture. */}
+      {analysis === "ready" ? (
+        <StarRow earned={row.stars} total={row.totalStars} />
+      ) : analysis === "coming" ? (
+        <div
+          data-testid={`cv3_history_analysing_${row.id}`}
+          style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 999,
+              background: "#C4B5FD",
+              flexShrink: 0,
+              animation: "hist-waiting 1.8s ease-in-out infinite",
+            }}
+          />
+          <span
+            style={{
+              color: "rgba(196,181,253,0.85)",
+              fontSize: 13,
+              fontWeight: 500,
+              lineHeight: "16px",
+            }}
+          >
+            Analysing
+          </span>
+        </div>
+      ) : (
+        <div
+          data-testid={`cv3_history_noscore_${row.id}`}
+          style={{
+            color: "rgba(255,255,255,0.30)",
+            fontSize: 13,
+            lineHeight: "16px",
+            flexShrink: 0,
+          }}
+        >
+          No score
+        </div>
+      )}
+
+      {/* The slot is held either way, so a row with nothing to open does not
+          drag its lane out to the screen edge while its neighbours stop short
+          of the chevron. */}
+      <div style={{ width: 18, height: 18, flexShrink: 0 }}>
+        {opens && (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        )}
+      </div>
     </button>
   );
 }

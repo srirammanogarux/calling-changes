@@ -395,3 +395,11 @@ textarea {
   70% { opacity: 0.85; }
   86%, 100% { opacity: 0; }
 }
+
+/* The analysis is still coming. A slow breath rather than a blink: the row is
+   waiting, not alerting, and half a dozen blinking dots down one list is a
+   fault indicator panel. */
+@keyframes hist-waiting {
+  0%, 100% { opacity: 0.35; transform: scale(0.86); }
+  50% { opacity: 1; transform: scale(1); }
+}
